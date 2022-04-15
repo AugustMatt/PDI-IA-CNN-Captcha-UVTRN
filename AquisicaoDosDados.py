@@ -139,8 +139,7 @@ def ProcessarCaptchas():
             if sizes[i] >= min_size:
                 img_processada2[output == i + 1] = 255
 
-        # Salva imagem processada na pasta definida
-        cv2.imwrite(PASTA_CAPTCHAS_PROCESSADOS + "//" + nome_arquivo, img_processada2)  
+        cv2.imwrite(PASTA_CAPTCHAS_PROCESSADOS + "//" + nome_arquivo, img_processada2) # Salva imagem processada na pasta definida
 
         os.remove(captcha_file) # remove arquivo de captcha utilizado
 
