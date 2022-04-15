@@ -187,6 +187,8 @@ def ExtrairCaracteres():
                 os.remove(captcha_file)
                 continue
         
+
+        # ordena os contornos obtidos da esquerda para a direita
         char_images = sorted(char_regions, key=lambda x: x[0])
 
         # Para cada contorno obtido, adquire a imagem correspondente
@@ -194,6 +196,7 @@ def ExtrairCaracteres():
         for contorno in char_images:
             img_name = AdquirirNome(PASTA_CARACTERES + "\\" + caracteres[i])
             caractere = img_processada[contorno[1]:contorno[1]+contorno[3], contorno[0]:contorno[0]+contorno[2]]
+            caractere = RemoveGroupedPixels(caractere, 100)
             if(ord(caracteres[i])>=65):
                 save_folder = ord(caracteres[i])-56 # Conversão do caractere para a pasta respectiva
             else:
@@ -202,7 +205,7 @@ def ExtrairCaracteres():
             cv2.imwrite(PASTA_CARACTERES + "\\" + str(save_folder) + "\\" + str(img_name)+".png", caractere)  
             i+=1
 
-        os.remove(captcha_file)
+        #os.remove(captcha_file)
     
     print("Extração de caracteres finalizado...")
 
@@ -215,6 +218,15 @@ def AdquirirNome(folder):
         name+=1
     return name
 
+def RemoveGroupedPixels(img, group_size):
+    nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(img)
+    sizes = stats[1:, -1]; nb_components = nb_components - 1
+    min_size = group_size
+    removed = np.zeros((output.shape))
+    for i in range(0, nb_components):
+        if sizes[i] >= min_size:
+            removed[output == i + 1] = 255
+    return removed
 
 
 PegarCaptchas()

@@ -12,7 +12,7 @@ def RemoveGroupedPixels(img, group_size):
             removed[output == i + 1] = 255
     return removed
 
-img = cv.imread('CaptchasOriginais\\captcha.png')
+img = cv.imread('.\\CaptchasOriginais\\H5LAC.png')
 cv.imshow('Original', img)
 
 # remove salt and pepper noise
