@@ -142,7 +142,7 @@ def ProcessarCaptchas():
         # Salva imagem processada na pasta definida
         cv2.imwrite(PASTA_CAPTCHAS_PROCESSADOS + "//" + nome_arquivo, img_processada2)  
 
-        os.remove(captcha_file)
+        os.remove(captcha_file) # remove arquivo de captcha utilizado
 
     print("Processamento de imagens finalizado")
 
@@ -205,7 +205,7 @@ def ExtrairCaracteres():
             cv2.imwrite(PASTA_CARACTERES + "\\" + str(save_folder) + "\\" + str(img_name)+".png", caractere)  
             i+=1
 
-        #os.remove(captcha_file)
+        os.remove(captcha_file) # Remove arquivo de captcha utilizado
     
     print("Extração de caracteres finalizado...")
 
