@@ -12,24 +12,9 @@ import glob
 import os
 import numpy as np
 
-# Pasta para salvar as imagens dos captchas obtidos
-PASTA_CAPTCHAS = ".\\CaptchasOriginais"
-
-# Pasta para salvar as imagens dos captchas processados
-PASTA_CAPTCHAS_PROCESSADOS = ".\\CaptchasProcessados"
-
-# Pasta para salvar as imagens dos caracteres extraidos dos captchas processados
-PASTA_CARACTERES = ".\\Caracteres"
-
-def RemoveGroupedPixels(img, group_size):
-    nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(img)
-    sizes = stats[1:, -1]; nb_components = nb_components - 1
-    min_size = group_size
-    removed = np.zeros((output.shape))
-    for i in range(0, nb_components):
-        if sizes[i] >= min_size:
-            removed[output == i + 1] = 255
-    return removed
+PASTA_CAPTCHAS = ".\\CaptchasOriginais"                 # Pasta para salvar as imagens dos captchas obtidos
+PASTA_CAPTCHAS_PROCESSADOS = ".\\CaptchasProcessados"   # Pasta para salvar as imagens dos captchas processados
+PASTA_CARACTERES = ".\\Caracteres"                      # Pasta para salvar as imagens dos caracteres extraidos dos captchas processados
 
 
 # Metodo para acessar o site da UVT RN e adquirir imagens dos captchas
@@ -127,110 +112,83 @@ def ProcessarCaptchas():
 
     print("Processamento de imagens iniciado")
 
-    # Para cada arquivo de imagem na pasta dos captchas
-    image_files = glob.glob(os.path.join(PASTA_CAPTCHAS, "*"))
+    image_files = glob.glob(os.path.join(PASTA_CAPTCHAS, "*"))  # Para cada arquivo de imagem na pasta dos captchas
 
     for (i, captcha_file) in enumerate(image_files):
 
-        # Adquire o nome do arquivo do captcha
-        nome_arquivo = captcha_file.split("\\")[2]
-        
-        # Abre a imagem e aplica processamento
-        img = cv2.imread(captcha_file)
+        nome_arquivo = captcha_file.split("\\")[2]      # Adquire o nome do arquivo do captcha
+        nome_puro_arquivo = nome_arquivo.split(".")[0]  # Nome do arquivo sem a extensão
+        caracteres = list(nome_arquivo)                 # Lista com cada caractere do captcha
 
-        # remove salt and pepper noise
-        img = cv2.medianBlur(img, 3)
-      
-        # convert to grayscale
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        img = cv2.imread(captcha_file)                  # Abre a imagem e aplica processamento
+        img = cv2.medianBlur(img, 3)                    # Remove ruido sal e pimenta com o filtro gaussiano
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)    # Converte a imagem para escala de cinza
 
-        # apply threshold
-        ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)  # Binariza os pixels da imagem
 
-        # erode image
+        # Aplica erosão para reduzir o ruido
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         removed = cv2.erode(thresh, kernel, iterations=1)
 
-    
-        # Salva imagem processada na pasta definida
-        cv2.imwrite(PASTA_CAPTCHAS_PROCESSADOS + "//" + nome_arquivo, removed)  
-
-        os.remove(captcha_file)
-
-    print("Processamento de imagens finalizado")
-
-# Metodo para extrair cada caractere dos captchas processados e salvar em sua pasta especifica
-def ExtrairCaracteres():
-
-    print("Extração de caracteres iniciado...")
-    
-    # Para cada arquivo de imagem na pasta dos captchas processados
-    image_files = glob.glob(os.path.join(PASTA_CAPTCHAS_PROCESSADOS, "*"))
-
-    for (i, captcha_file) in enumerate(image_files):
-
-        # Adquire uma lista com cada caracte do captcha
-        nome_arquivo = captcha_file.split("\\")[2]
-        nome_arquivo = nome_arquivo.split(".")[0]
-        caracteres = list(nome_arquivo)
-
-        # Abre a imagem
-        img = cv2.imread(captcha_file)
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU)
-
-
-        # find contours
+        # Encontra os contornos a imagem
         cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         cnts = cnts[0] if len(cnts) == 2 else cnts[1]
-
-        # get the five largest contours
+        
+        # Se encontrar mais que cinco contornos, pega os 5 maiores contornos
+        # Se encontrar menos que cinco contornos, pula o processamento e apaga a imagem atual
         if(len(cnts)>5):
             sorted_cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:5]
         elif(len(cnts)<5):
-            #print("Não consegui encontrar 5 contornos ou mais nessa imagem")
-            continue
-
-        # Se foi encontrado mais contornos que caracteres, algo deu errado. 
-        # Nesse caso desconsideramos essa imagem
-        if len(sorted_cnts) != len(caracteres):
-            #print("Não foi possivel extrair os caracteres da imagem ", captcha_file)
+            print("Não consegui encontrar 5 contornos ou mais nessa imagem")
             os.remove(captcha_file)
             continue
 
-        # crop the five largest contours
+        # Corta os contornos obtidos, adquirindo os caracteres
         cropped = []
         for c in sorted_cnts:
             x, y, w, h = cv2.boundingRect(c)
             cropped.append(img[y:y + h, x:x + w])
-        
-        for i in range(0, len(cropped)):
-            cropped[i] = cropped[i].astype(np.uint8)
-            cv2.imshow('fon', cropped[i])
-            cv2.waitKey(0)
 
-        # remove small pixels gruops from each crop
+        # Ajuste de tipo....
+        for i in range(0, len(cropped)):
+            cropped[i] = cv2.cvtColor(cropped[i], cv2.COLOR_BGR2GRAY)
+            ret, aux = cv2.threshold(cropped[i], 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+            cropped[i] = aux
+
+        # Remove grupos pequenos de pixels dos caracteres extraidos
         for i in range(0, len(cropped)):
             cropped[i] = RemoveGroupedPixels(cropped[i], 100)
-            
-     
 
-        # Para cada contorno obtido, adquire a imagem correspondente
+        # Para cada caractere obtido, adquire a imagem correspondente
         i = 0
         for crop in cropped:
-            img_name = AdquirirNome(PASTA_CARACTERES + "\\" + caracteres[i])
-            print(img_name)
+
+            img_name = AdquirirNome(PASTA_CARACTERES + "\\" + caracteres[i])    # Monta parte do caminho para salvar a imagem do caractere
+            
+            # Monta parte do caminho para salvar a imagem do caractere baseado na tabela ASCII
             if(ord(caracteres[i])>=65):
-                save_folder = ord(caracteres[i])-56 # Conversão do caractere para a pasta respectiva
+                save_folder = ord(caracteres[i])-56
             else:
                 save_folder = caracteres[i]
 
+            print("extração de caracteres sucedida... salvando em : ", PASTA_CARACTERES + "\\" + str(save_folder) + "\\" + str(img_name)+".png")
             cv2.imwrite(PASTA_CARACTERES + "\\" + str(save_folder) + "\\" + str(img_name)+".png", crop)  
             i+=1
 
-        os.remove(captcha_file)
-    
-    print("Extração de caracteres finalizado...")
+
+        #os.remove(captcha_file) # Remove o arquivo utilizado para a extração dos caracteres
+
+    print("Processamento de imagens finalizado")
+
+def RemoveGroupedPixels(img, group_size):
+    nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(img)
+    sizes = stats[1:, -1]; nb_components = nb_components - 1
+    min_size = group_size
+    removed = np.zeros((output.shape))
+    for i in range(0, nb_components):
+        if sizes[i] >= min_size:
+            removed[output == i + 1] = 255
+    return removed
 
 # Obtem o primeiro nome disponivel para salvar um arquivo de imagem em uma pasta onde os arquivo são enumerados
 # em ordem crescente : Ex. 1.png, 2.png, ...
@@ -245,4 +203,3 @@ def AdquirirNome(folder):
 
 PegarCaptchas()
 ProcessarCaptchas()
-ExtrairCaracteres()
